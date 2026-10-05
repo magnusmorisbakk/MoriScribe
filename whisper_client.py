@@ -11,11 +11,11 @@ def transcribe_audio_chunk(audio_data: np.ndarray) -> str | None:
     try:
         files = {"file": ("chunk.wav", wav_buffer, "audio/wav")}
         data = {
-            "model": "Systran/faster-whisper-medium",
+            "model": "Systran/faster-distil-whisper-large-v3",
             "language": "no"
         }
 
-        response = requests.post(WHISPER_URL, files=files, data=data, timeout=5)
+        response = requests.post(WHISPER_URL, files=files, data=data, timeout=30)
         response.raise_for_status()
 
         result = response.json()
