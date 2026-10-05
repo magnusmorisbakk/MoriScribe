@@ -1,54 +1,56 @@
 
 # MoriScribe
-MoriScribe is a local system audio transcriber and AI-based summarizer built with Python. The program captures system output audio from default speakers and transcribes speech using `faster-whisper`. Structured summaries are generated locally using Ollama.
+MoriScribe is a local system audio transcriber and AI-based summarizer built with Python. The program captures system output audio from default speakers and transcribes speech using `faster-whisper. Structured summaries are generated locally using Ollama.
 
   
-
+--- 
 ## The Vision
-Learn how to build a lightweight client application that turns spoken audio into notes locally, without external cloud APIs, subscriptions, or third-party services.
+A lightweight client that turns spoken audio into notes locally, without depending on cloud APIs, subscriptions or third party services.
 
-  
 
 *  **Focus on privacy:** Audio and transcripts do not leave your home network. No cloud tracking or external telemetry.
-*  **Client offloading:** The host PC handles zero AI computation. STT and LLM workloads are run on a dedicated server.
+*  **Client offloading:** The host PC handles zero AI computation. Speech to text and LLM workloads run on a dedicated server.
 
   
-
+--- 
 ## Features
 *  **System Audio Capture:** Uses loopback recording through `soundcard` to record system output directly from default audio devices on your device.
 
-*  **Remote GPU workload:** Offloads Whisper processing to a containerized `faster-whisper-server` over HTTP POST.
+*  **Remote GPU workload:** Offloads Whisper processing to a containerized `faster-whisper-server` over HTTP.
 
-*  **LAN AI Summarization:** Routes transcribed text to a remote Ollama instance running lightweight instruction models.
+*  **LAN AI Summarization:** Sends the transcribed text to a remote Ollama instance running lightweight instruction models.
+
+* **Saved transcriptions:** The full transcript is written to a file when you stop the program.
 
   
-
+--- 
 ## System Flow
-1.  **[Host PC]** -> Records system output locally through `soundcard` and creates an in-memory byte stream.
-2.  **[Host PC]** -> Sends an HTTP POST request with an in-memory `.wav` file over LAN to the Whisper server (Port 9000).
-3.  **[Server (Whisper Container)]** -> Receives `.wav` file and runs Whisper on the GPU. Returns the transcript back as an HTTP response to the host.
-4.  **[Host PC]** -> Receives the transcript and sends an HTTP POST request with the text over LAN to Ollama (Port 11434).
-5.  **[Server (Ollama Container)]** -> Receives the text, runs `qwen2.5:3b` on the GPU, and returns the summary in the HTTP response to the host PC.
-6.  **[Host PC]** -> Prints the transcript and summary to the console.
+1.  **[Host PC]** -> Records system output in chunks and builds an in memory `.wav` for each. 
+2.  **[Host PC] -> [Whisper server (port 9000)]:** Sends each chunk as an HTTP POST over the LAN.
+3.  **[Whisper Container]:** Transcribes the chunk on the GPU and returns the text.
+4.  **[Host PC]:** Prints the transcript live and collects it. When you press `Ctrl+C`, it saves the transcript and sends the full text to Ollama (port 11434).
+5.  **[Ollama Container]:** Runs `qwen2.5:3b` on the GPU and returns the summary.
+6.  **[Host PC]:** Prints the transcript and summary to the console, and saves the transcript locally.
 
   
-
-## Prerequisites
-### 1. Host PC Requirements
+--- 
+## Requirements
+### Host PC Requirements
 
 *  **Python 3.11 or 3.12**  *(Python 3.13+ is unsupported by soundcard dependencies)*
 * Network access to your Docker server over LAN.
 
-### 2. Server Stack (Docker / Portainer / Dockge)
-*  `faster-whisper-server` running on port `9000` (`fedirz/faster-whisper-server:latest-cuda` or `latest-cpu`).
-* Ollama running on port `11434` with `qwen2.5:3b` pulled:
+### Server
+* Docker
+* An NVIDIA GPU with CUDA support (CPU images are available but slower)
+* Linux (tested on Ubuntu Server)
+* NVIDIA Container Toolkit, so containers can utilize the GPU
 
-```bash
-ollama pull qwen2.5:3b
-```
 
-## Docker Compose Configuration
-Below is the stack configuration used for running the Whisper server container:
+--- 
+## Server Setup
+### 1. Whisper
+Run `faster-whisper-server` with the following Docker Compose file. `latest-cpu` if you have no GPU.
 
 ```YAML
 services:
@@ -56,14 +58,15 @@ services:
     image: fedirz/faster-whisper-server:latest-cuda
     container_name: whisper-server
     ports:
-      - "8000:8000"
+      - "9000:8000"
     environment:
-      - WHISPER__MODEL=Systran/faster-whisper-medium
+      - WHISPER__MODEL=Systran/faster-distil-whisper-large-v3
       - WHISPER__INFERENCE_DEVICE=cuda
       - WHISPER__COMPUTE_TYPE=int8
-      - PRELOAD_MODELS=["Systran/faster-whisper-medium"]
+      - PRELOAD_MODELS=["Systran/faster-distil-whisper-large-v3"]
     volumes:
-      - whisper-cache:/root/.cache/huggingface
+       volumes:
+      - /local_filepath/:/root/.cache/huggingface  # Replace local_filepath with a directory on your server
     deploy:
       resources:
         reservations:
@@ -77,65 +80,71 @@ volumes:
   whisper-cache:
 ```
 
-## Installation
-1. Clone the repository:
-```Bash
+### 2. Ollama
+Run `ollama/ollama` with the following Docker Compose file.
+```yaml
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - /local_filepath/:/root/.ollama # Replace local_filepath with a directory on your server
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+```
+Pull the model:
+```bash
+docker exec ollama ollama pull qwen2.5:3b
+```
 
-git clone [https://github.com/YOUR_GITHUB_USERNAME/MoriScribe.git](https://github.com/YOUR_GITHUB_USERNAME/MoriScribe.git)```
+--- 
+## Client Setup
+1. Clone the repository:
+```bash
+git clone https://github.com/magnusmorisbakk/MoriScribe.git
 cd MoriScribe
 ```
 
-2. Create and activate a virtual environment:
-Windows (PowerShell):
-```PowerShell
+2. Create and activate a virtual environment
+```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
-3. Install dependencies:
-```Bash
+
+3. Install dependencies
+```bash
 python -m pip install soundcard numpy requests ollama python-dotenv
 ```
 
-## Configuration
-Copy .env.example to .env and fill in your server's IP address and endpoints
+4. Copy `.env.example` to `.env` and fill in the address of your server.
 
-
+---
 ## Usage
+1. Start playing any audio on your system
+2. Run the program:
+```bash
+python main.py
+```
+3. MoriScribe will:
+* Continously record system audio and skip silent chunks
+* Send each chunk to the Whisper server and print the transcript as it arrives.
+* On `Ctrl+C`, save the full transcript to a file and print bullet point summary generated by Ollama.
 
-1.  Start playing any system audio.
-    
-2.  Run the main script:
-   
-    ```Bash
-    python main.py
-    ```
-    
-3.  The program will automatically:
-    
-    -   Continuously record local system audio.
-        
-    -   Send the audio chunks to your server for Whisper GPU transcription.
-        
-    -   Send the transcript to Ollama for bullet point summarization.
-        
-    -   Print the results directly in your terminal
-        
-
-## Hardware Requirement & Tested Setup
-
-### Client Device (Host PC)
-
--   **OS:** Windows / Linux
-    
--   **Python:** 3.12
-    
--   **Audio Device:** Default system output / Loopback device
-    
-
-### Remote Server
-
--   **OS:** Linux (Ubuntu Server / Debian / TrueNAS)
-    
--   **GPU:** NVIDIA GPU with CUDA support recommended
-    
--   **Containers:** Docker runtime running Ollama and Faster-Whisper-Server
+---
+## Tested Setup
+| **Component** | **Details** |
+| :---| :--- |
+| Host OS | Windows |
+| Python | 3.12 |
+| Audio device | Default system output |
+| Server OS | Linux (Ubuntu Server) |
+| Server GPU | NVIDIA, CUDA |
+| Containers | `faster-whisper-server`and `Ollama`
