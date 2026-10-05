@@ -19,3 +19,4 @@ WHISPER_PORT = os.getenv("WHISPER_PORT", "9000")
 OLLAMA_HOST = f"http://{SERVER_IP}:{OLLAMA_PORT}"
 WHISPER_URL = f"http://{SERVER_IP}:{WHISPER_PORT}/v1/audio/transcriptions"
 LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5:3b")
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "Systran/faster-distil-whisper-large-v3")

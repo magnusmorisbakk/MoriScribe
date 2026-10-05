@@ -2,7 +2,7 @@
 import requests
 import numpy as np
 from audio_recorder import create_wav_buffer
-from config import WHISPER_URL, TARGET_SAMPLE_RATE
+from config import WHISPER_URL, TARGET_SAMPLE_RATE, WHISPER_MODEL
 
 def transcribe_audio_chunk(audio_data: np.ndarray) -> str | None:
     # Converts audio array into wav buffer in memory and posts to whisper endpoint
@@ -11,7 +11,7 @@ def transcribe_audio_chunk(audio_data: np.ndarray) -> str | None:
     try:
         files = {"file": ("chunk.wav", wav_buffer, "audio/wav")}
         data = {
-            "model": "Systran/faster-distil-whisper-large-v3",
+            "model": WHISPER_MODEL,
             "language": "no"
         }
 
