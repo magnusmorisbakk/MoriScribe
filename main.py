@@ -12,23 +12,32 @@ running = True
 transcript_history = []
 
 def transcription():
-    # Pulls audio arrays from queue and POSTS to whipser API
+    # Pulls audio arrays from queue and POSTS to Whisper API
+    transcript_count = 0
+
     while running or not audio_queue.empty():
         try:
             audio_data = audio_queue.get(timeout=1)
         except queue.Empty:
             continue
 
-        try: 
+        try:
             transcript = transcribe_audio_chunk(audio_data)
+
             if transcript:
-                timestamp = time.strftime("%H:%M:%S")
-                print(f"{timestamp}: {transcript}")
+                transcript_count += 1
                 transcript_history.append(transcript)
+
+                # Timestamp on the first chunk and every fifth chunk after that
+                if (transcript_count - 1) % 5 == 0:
+                    timestamp = time.strftime("%H:%M:%S")
+                    print(f"\n\n{timestamp}: {transcript}", end=" ", flush=True)
+                else:
+                    print(transcript, end=" ", flush=True)
+
         except Exception as err:
-            print(f"\nError processing audio chunk]: {err}")
+            print(f"\nError processing audio chunk: {err}")
         finally:
-            # task_done() is always called, to avoid queue.join() causing deadlocks
             audio_queue.task_done()
         
 
