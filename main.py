@@ -3,6 +3,7 @@ import queue
 import signal
 import threading
 import time
+from transcript import save_transcript
 from audio_recorder import capture_audio_loop
 from whisper_client import transcribe_audio_chunk
 from summarizer import summarize_transcript
@@ -78,6 +79,10 @@ if __name__ == "__main__":
     # Generate final transcription summary
     full_transcript = "\n".join(transcript_history)
     if full_transcript:
+        transcript_file = save_transcript(full_transcript)
+        print(f"\n\nTranscription saved to: {transcript_file}")
+
+
         print("\n--- Generating summary ---")
         summary  = summarize_transcript(full_transcript)
         if summary:
