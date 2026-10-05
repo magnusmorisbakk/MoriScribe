@@ -61,10 +61,12 @@ def capture_audio_loop(audio_queue, running_flag):
                 audio_mono = raw_data.flatten()
 
              # Add trailing audio from previous chunk to avoind word clipping
-            if len(previous_overlap) > 0:
+            if overlap_frames > 0:
                 combined_audio = np.concatenate((previous_overlap, audio_mono))
+                previous_overlap = audio_mono[-overlap_frames:]
             else:
                 combined_audio = audio_mono
+                previous_overlap = np.array([], dtype=np.float32)
 
             # Store end of audio chunk to overlap into next audio chunk
             previous_overlap = audio_mono[-overlap_frames:]
