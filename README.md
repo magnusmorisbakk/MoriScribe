@@ -2,7 +2,8 @@
 # MoriScribe
 MoriScribe is a local system audio transcriber and AI-based summarizer built with Python. The program captures system output audio from default speakers and transcribes speech using `faster-whisper. Structured summaries are generated locally using Ollama.
 
-  
+![MoriScribe Showcase](https://github.com/user-attachments/assets/eb45f8ff-b7cf-414d-a149-1bbc1f9d5196)
+
 --- 
 ## The Vision
 A lightweight client that turns spoken audio into notes locally, without depending on cloud APIs, subscriptions or third party services.
