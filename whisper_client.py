@@ -12,7 +12,7 @@ def transcribe_audio_chunk(audio_data: np.ndarray) -> str | None:
         files = {"file": ("chunk.wav", wav_buffer, "audio/wav")}
         data = {
             "model": WHISPER_MODEL,
-            "language": "no"
+            "language": "en"
         }
 
         response = requests.post(WHISPER_URL, files=files, data=data, timeout=30)

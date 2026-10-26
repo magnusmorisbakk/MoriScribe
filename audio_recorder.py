@@ -39,41 +39,44 @@ def create_wav_buffer(audio_mono: np.ndarray, sample_rate: int) -> io.BytesIO:
     return wav_buffer
 
 def capture_audio_loop(audio_queue, running_flag):
-    default_speaker = sc.default_speaker()
-    
-    # Pass default_speaker.id 
-    loopback_mic = sc.get_microphone(id=default_speaker.id, include_loopback=True)
-
-    print(f"Listening continuously on: {default_speaker.name}")
-
-    total_frames = int(TARGET_SAMPLE_RATE * CHUNK_DURATION)
-    overlap_frames = int(TARGET_SAMPLE_RATE * OVERLAP_DURATION)
-    previous_overlap = np.array([], dtype=np.float32)
-
-    with loopback_mic.recorder(samplerate=TARGET_SAMPLE_RATE, 
+    try:
+        default_speaker = sc.default_speaker()
+            
+            # Pass default_speaker.id 
+        loopback_mic = sc.get_microphone(id=default_speaker.id, include_loopback=True)
+        
+        print(f"Listening continuously on: {default_speaker.name}")
+        
+        total_frames = int(TARGET_SAMPLE_RATE * CHUNK_DURATION)
+        overlap_frames = int(TARGET_SAMPLE_RATE * OVERLAP_DURATION)
+        previous_overlap = np.array([], dtype=np.float32)
+        
+        with loopback_mic.recorder(samplerate=TARGET_SAMPLE_RATE, 
                                                 blocksize=BLOCK_SIZE) as mic:
-        while running_flag():
-            raw_data = mic.record(numframes=total_frames)
-
-            if raw_data.ndim > 1 and raw_data.shape[1] > 1:
-                audio_mono = np.mean(raw_data, axis=1)
-            else:
-                audio_mono = raw_data.flatten()
-
-             # Add trailing audio from previous chunk to avoind word clipping
-            if overlap_frames > 0:
-                combined_audio = np.concatenate((previous_overlap, audio_mono))
-                previous_overlap = audio_mono[-overlap_frames:]
-            else:
-                combined_audio = audio_mono
-                previous_overlap = np.array([], dtype=np.float32)
-
-            # Store end of audio chunk to overlap into next audio chunk
-            previous_overlap = audio_mono[-overlap_frames:]
-
-            # Audio chunk is skipped if energy reading is lower than threshold
-            if get_rms(combined_audio) >= RMS_THRESHOLD:
-                audio_queue.put(combined_audio)
-
+            while running_flag():
+                raw_data = mic.record(numframes=total_frames)
+        
+                if raw_data.ndim > 1 and raw_data.shape[1] > 1:
+                    audio_mono = np.mean(raw_data, axis=1)
+                else:
+                    audio_mono = raw_data.flatten()
+        
+                # Add trailing audio from previous chunk to avoid word clipping
+                if overlap_frames > 0:
+                    combined_audio = np.concatenate((previous_overlap, audio_mono))
+                    previous_overlap = audio_mono[-overlap_frames:]
+                else:
+                    combined_audio = audio_mono
+                    previous_overlap = np.array([], dtype=np.float32)
+        
+                    # Audio chunk is skipped if energy reading is lower than threshold
+                if get_rms(combined_audio) >= RMS_THRESHOLD:
+                    audio_queue.put(combined_audio)
+    except sc.SoundcardRuntimeWarning as e:
+        print(f"Audio device failed: {e}")
+    except Exception as e:
+        print(f"Unexpected error during audio capture: {e}")
+        
+        
             
 

@@ -45,7 +45,7 @@ def transcription():
 def exit(sig, frame):
     # Soft exit when stopping program (Ctrl + C)
     global running
-    print("\nStopping transcription")
+    print("\n\nStopping transcription")
     running = False
 
 
