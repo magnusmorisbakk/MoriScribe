@@ -4,12 +4,16 @@ from pathlib import Path
 
 TRANSCRIPT_DIR = Path("transcripts")
 
-def save_transcript(transcript: str) -> path:
-    TRANSCRIPT_DIR.mkdir(exist_ok=True)
+def save_transcript(transcript: str) -> Path | None:
+    try:
+        TRANSCRIPT_DIR.mkdir(exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_path = TRANSCRIPT_DIR / f"transcript_{timestamp}.txt"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_path = TRANSCRIPT_DIR / f"transcript_{timestamp}.txt"
 
-    file_path.write_text(transcript, encoding="utf-8")
+        file_path.write_text(transcript, encoding="utf-8")
+        return file_path
+    except PermissionError:
+        print("Permission denied: Cannot write to file")
 
-    return file_path
+    return None
